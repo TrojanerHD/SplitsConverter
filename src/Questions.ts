@@ -89,32 +89,37 @@ export default class Questions {
         const run: Run = JSON.parse(
           xml2json.toJson(fs.readFileSync(answer, 'utf-8'))
         );
-        let result: string = '';
+        let result: string = '{Chapter 1} {\n';
         let chapter: number = 1;
-        let inChapter: boolean = false;
-        for (let segment of run.Run.Segments.Segment) {
-          if (segment.Name.startsWith('{')) {
-            chapter++;
+        let inChapter: boolean = true;
+        for (let i: number = 0; i < run.Run.Segments.Segment.length; i++) {
+          const segment = run.Run.Segments.Segment[i];
+          if (segment.Name.startsWith('{Chapter ')) {
+            segment.Name = segment.Name.replace(/{Chapter \d+} /, '');
             inChapter = false;
-            result += '}\n';
-          }
-          if (!inChapter) {
-            result += `{Chapter ${chapter}} {\n`;
-            inChapter = true;
+            chapter++;
           }
           if (segment.Name.includes(' '))
             result += `\t{${segment.Name.replace(/^-/, '')}}`;
           else result += `\t${segment.Name.replace(/^-/, '')}`;
-          result += ` ${segment.SplitTimes.SplitTime.GameTime}\n`;
+          let time: string = segment.SplitTimes.SplitTime.GameTime;
+          while (time.match(/^[0:]/)) time = time.substr(1);
+          result += ` ${time}\n`;
+          if (!inChapter && i !== run.Run.Segments.Segment.length - 1) {
+            result += `}\n{Chapter ${chapter}} {\n`;
+            inChapter = true;
+          }
         }
         fs.writeFile(
           './rift-splits',
-          result.replace(/\n$/, ''),
+          result.replace(/$/, '}'),
           (err: NodeJS.ErrnoException) => {
             if (err) console.error(err);
           }
         );
-        console.log(`Completed conversion of LiveSplit file ${answer} to rift file ./rift-splits`);
+        console.log(
+          `Completed conversion of LiveSplit file ${answer} to rift file ./rift-splits`
+        );
         rl.close();
         break;
       case 'r':
